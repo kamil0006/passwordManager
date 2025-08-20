@@ -1,0 +1,214 @@
+.vault-container {
+	min-height: 100vh;
+	background: #f8f9fa;
+	padding: 20px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.vault-card {
+	max-width: 1200px;
+	margin: 0 auto;
+	background: white;
+	border-radius: 8px;
+	padding: 30px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.vault-title {
+	margin-bottom: 30px;
+	color: #2d3748;
+	font-size: 1.8rem;
+	font-weight: 500;
+}
+
+.security-info {
+	background: #d1ecf1;
+	border: 1px solid #bee5eb;
+	color: #0c5460;
+	padding: 12px 16px;
+	border-radius: 4px;
+	margin-bottom: 25px;
+	font-size: 14px;
+	text-align: center;
+}
+
+.security-details {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #bee5eb;
+	color: #0a4b53;
+}
+
+.add-entry-section {
+	background: #f8f9fa;
+	border-radius: 6px;
+	padding: 20px;
+	margin-bottom: 30px;
+	border: 1px solid #e9ecef;
+}
+
+.add-entry-title {
+	margin: 0 0 15px 0;
+	color: #495057;
+	font-size: 1rem;
+	font-weight: 500;
+}
+
+.add-entry-form {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 10px;
+	align-items: end;
+}
+
+.add-entry-input {
+	padding: 8px 12px;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	font-size: 14px;
+	outline: none;
+	transition: border-color 0.2s;
+}
+.add-entry-input:focus {
+	border-color: #007bff;
+}
+
+.add-entry-button {
+	padding: 8px 16px;
+	background: #007bff;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	font-size: 14px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+.add-entry-button:hover:not(:disabled) {
+	background: #0056b3;
+}
+.add-entry-button:active:not(:disabled) {
+	background: #004085;
+}
+.add-entry-button:disabled {
+	background: #6c757d;
+	cursor: not-allowed;
+}
+
+.entries-section-title {
+	margin: 0 0 15px 0;
+	color: #495057;
+	font-size: 1rem;
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.loading-indicator {
+	color: #007bff;
+	font-size: 0.9rem;
+	font-weight: normal;
+}
+
+.no-entries {
+	text-align: center;
+	padding: 30px;
+	color: #6c757d;
+	font-style: italic;
+}
+
+.entries-list {
+	display: grid;
+	gap: 8px;
+}
+
+.entry-card {
+	background: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	padding: 12px;
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr auto auto;
+	gap: 10px;
+	align-items: center;
+}
+
+.entry-name {
+	font-weight: 500;
+	color: #212529;
+	font-size: 14px;
+}
+
+.entry-username {
+	color: #495057;
+	font-family: monospace;
+	font-size: 13px;
+}
+
+.entry-password {
+	color: #6c757d;
+	font-family: monospace;
+	font-size: 13px;
+	background: white;
+	padding: 4px 8px;
+	border-radius: 3px;
+	border: 1px solid #dee2e6;
+}
+
+.entry-date {
+	color: #6c757d;
+	font-size: 12px;
+	font-style: italic;
+}
+
+.delete-button {
+	background: transparent;
+	color: #6c757d;
+	border: none;
+	border-radius: 4px;
+	padding: 6px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	min-width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.delete-button:hover {
+	background: rgba(220, 53, 69, 0.1);
+	color: #dc3545;
+	transform: scale(1.1);
+}
+
+.delete-button:active {
+	background: rgba(220, 53, 69, 0.2);
+	transform: scale(0.95);
+}
+
+.delete-button svg {
+	width: 18px;
+	height: 18px;
+}
+
+@media (max-width: 600px) {
+	.vault-card {
+		padding: 10px;
+	}
+	.add-entry-section {
+		padding: 10px;
+	}
+	.entry-card {
+		padding: 8px;
+		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+	.delete-button {
+		justify-self: end;
+		margin-top: 5px;
+	}
+	.entry-date {
+		font-size: 11px;
+	}
+}
