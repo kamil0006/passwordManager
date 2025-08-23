@@ -14,6 +14,11 @@ export type SecurityInfo = {
 	saltLength: number;
 	ivLength: number;
 	securityLevel: string;
+	failedAttempts: number;
+	isLocked: boolean;
+	lockTimeRemaining: number;
+	encryptionVersion: string;
+	databaseEncrypted: boolean;
 };
 
 declare global {
@@ -24,6 +29,8 @@ declare global {
 			deleteEntry: (id: number) => Promise<boolean>;
 			testMasterPassword: (password: string) => Promise<boolean>;
 			getSecurityInfo: () => Promise<SecurityInfo>;
+			reportActivity: () => void;
+			onAutoLock: (callback: () => void) => void;
 		};
 	}
 }

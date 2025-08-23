@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './LoginScreen.css';
+import ThemeToggle from './ThemeToggle';
+import SecurityFeatures from './SecurityFeatures';
 
 type Props = {
 	onLogin: (masterPassword: string) => void;
@@ -13,8 +15,29 @@ const LoginScreen: React.FC<Props> = ({ onLogin }) => {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (password.length < 4) {
-			setError('Password must be at least 4 characters long');
+		// Enhanced password validation
+		if (password.length < 12) {
+			setError('Master password must be at least 12 characters long');
+			return;
+		}
+
+		if (!/[A-Z]/.test(password)) {
+			setError('Master password must contain at least one uppercase letter');
+			return;
+		}
+
+		if (!/[a-z]/.test(password)) {
+			setError('Master password must contain at least one lowercase letter');
+			return;
+		}
+
+		if (!/\d/.test(password)) {
+			setError('Master password must contain at least one number');
+			return;
+		}
+
+		if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+			setError('Master password must contain at least one special character');
 			return;
 		}
 
@@ -32,7 +55,8 @@ const LoginScreen: React.FC<Props> = ({ onLogin }) => {
 			}
 		} catch (error) {
 			console.error('[LoginScreen] Error validating password:', error);
-			setError('An error occurred while validating the password. Please try again.');
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			setError(errorMessage);
 		} finally {
 			setIsValidating(false);
 		}
@@ -40,6 +64,8 @@ const LoginScreen: React.FC<Props> = ({ onLogin }) => {
 
 	return (
 		<div className='login-container'>
+			<ThemeToggle />
+			<SecurityFeatures />
 			<div className='login-card'>
 				<h1 className='login-title'>Password Manager</h1>
 

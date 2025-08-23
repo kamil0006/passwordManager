@@ -1,29 +1,31 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-console.log('[Preload] Ładowanie preload.js'); // <--- Debug
-
 contextBridge.exposeInMainWorld('vault', {
 	addEntry: entry => {
-		console.log('[Preload] addEntry called with:', entry);
+		ipcRenderer.send('vault:activity');
 		return ipcRenderer.invoke('vault:addEntry', entry);
 	},
 	getEntries: password => {
-		console.log('[Preload] getEntries called with password length:', password?.length);
+		ipcRenderer.send('vault:activity');
 		return ipcRenderer.invoke('vault:getEntries', password);
 	},
 	deleteEntry: id => {
-		console.log('[Preload] deleteEntry called with ID:', id);
+		ipcRenderer.send('vault:activity');
 		return ipcRenderer.invoke('vault:deleteEntry', id);
 	},
 	testMasterPassword: password => {
-		console.log('[Preload] testMasterPassword called with password length:', password?.length);
+		ipcRenderer.send('vault:activity');
 		return ipcRenderer.invoke('vault:testMasterPassword', password);
 	},
 	getSecurityInfo: () => {
-		console.log('[Preload] getSecurityInfo called');
+		ipcRenderer.send('vault:activity');
 		return ipcRenderer.invoke('vault:getSecurityInfo');
 	},
 	exportToFile: password => ipcRenderer.invoke('vault:export', password),
+	reportActivity: () => {
+		ipcRenderer.send('vault:activity');
+	},
+	onAutoLock: callback => {
+		ipcRenderer.on('vault:autoLock', callback);
+	},
 });
-
-console.log('[Preload] vault API exposed to renderer');

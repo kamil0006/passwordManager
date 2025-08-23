@@ -1,57 +1,65 @@
 .vault-container {
 	min-height: 100vh;
-	background: #f8f9fa;
+	background: var(--bg-secondary);
 	padding: 20px;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	transition: background-color 0.3s ease;
 }
 
 .vault-card {
 	max-width: 1200px;
 	margin: 0 auto;
-	background: white;
+	background: var(--bg-primary);
 	border-radius: 8px;
 	padding: 30px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 2px 8px var(--shadow-color);
+	border: 1px solid var(--border-color);
+	transition: all 0.3s ease;
 }
 
 .vault-title {
 	margin-bottom: 30px;
-	color: #2d3748;
+	color: var(--text-primary);
 	font-size: 1.8rem;
 	font-weight: 500;
+	text-align: center;
+	transition: color 0.3s ease;
 }
 
 .security-info {
-	background: #d1ecf1;
-	border: 1px solid #bee5eb;
-	color: #0c5460;
+	background: rgba(13, 202, 240, 0.1);
+	border: 1px solid rgba(13, 202, 240, 0.2);
+	color: var(--text-primary);
 	padding: 12px 16px;
 	border-radius: 4px;
 	margin-bottom: 25px;
 	font-size: 14px;
 	text-align: center;
+	transition: all 0.3s ease;
 }
 
 .security-details {
 	margin-top: 8px;
-	padding-top: 8px;
-	border-top: 1px solid #bee5eb;
-	color: #0a4b53;
+	color: var(--text-secondary);
+	font-size: 12px;
+	transition: color 0.3s ease;
 }
 
 .add-entry-section {
-	background: #f8f9fa;
+	background: var(--bg-secondary);
 	border-radius: 6px;
 	padding: 20px;
 	margin-bottom: 30px;
-	border: 1px solid #e9ecef;
+	border: 1px solid var(--border-color);
+	transition: all 0.3s ease;
 }
 
 .add-entry-title {
 	margin: 0 0 15px 0;
-	color: #495057;
+	color: var(--text-primary);
 	font-size: 1rem;
 	font-weight: 500;
+	transition: color 0.3s ease;
 }
 
 .add-entry-form {
@@ -63,58 +71,114 @@
 
 .add-entry-input {
 	padding: 8px 12px;
-	border: 1px solid #dee2e6;
+	border: 1px solid var(--border-color);
 	border-radius: 4px;
 	font-size: 14px;
 	outline: none;
-	transition: border-color 0.2s;
+	transition: all 0.2s ease;
+	background-color: var(--bg-primary);
+	color: var(--text-primary);
 }
+
 .add-entry-input:focus {
-	border-color: #007bff;
+	border-color: var(--accent-color);
+	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .add-entry-button {
 	padding: 8px 16px;
-	background: #007bff;
+	background: var(--accent-color);
 	color: white;
 	border: none;
 	border-radius: 4px;
-	font-size: 14px;
 	cursor: pointer;
-	transition: background-color 0.2s;
+	transition: all 0.2s ease;
+	min-width: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
+
 .add-entry-button:hover:not(:disabled) {
-	background: #0056b3;
+	background: var(--accent-hover);
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
+
 .add-entry-button:active:not(:disabled) {
-	background: #004085;
+	background: var(--accent-hover);
+	transform: translateY(0);
 }
+
 .add-entry-button:disabled {
-	background: #6c757d;
+	background: var(--text-secondary);
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+/* Entries Section */
+.entries-section {
+	margin-top: 30px;
+}
+
+.entries-title {
+	margin: 0 0 15px 0;
+	color: var(--text-primary);
+	font-size: 1rem;
+	font-weight: 500;
+	transition: color 0.3s ease;
+}
+
+/* Loading Indicators */
+.loading-indicator {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 16px;
+	background: rgba(59, 130, 246, 0.1);
+	border: 1px solid rgba(59, 130, 246, 0.3);
+	border-radius: 8px;
+	margin-bottom: 16px;
+	color: var(--accent-color);
+	font-size: 14px;
+	transition: all 0.3s ease;
+}
+
+.spinner {
+	width: 20px;
+	height: 20px;
+	border: 2px solid rgba(59, 130, 246, 0.3);
+	border-top: 2px solid var(--accent-color);
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+/* Disable form inputs during operations */
+.add-entry-input:disabled {
+	opacity: 0.6;
 	cursor: not-allowed;
 }
 
-.entries-section-title {
-	margin: 0 0 15px 0;
-	color: #495057;
-	font-size: 1rem;
-	font-weight: 500;
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.loading-indicator {
-	color: #007bff;
-	font-size: 0.9rem;
-	font-weight: normal;
+.add-entry-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }
 
 .no-entries {
 	text-align: center;
 	padding: 30px;
-	color: #6c757d;
+	color: var(--text-secondary);
 	font-style: italic;
+	transition: color 0.3s ease;
 }
 
 .entries-list {
@@ -123,47 +187,52 @@
 }
 
 .entry-card {
-	background: #f8f9fa;
-	border: 1px solid #dee2e6;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-color);
 	border-radius: 4px;
 	padding: 12px;
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr auto auto;
 	gap: 10px;
 	align-items: center;
+	transition: all 0.3s ease;
 }
 
 .entry-name {
 	font-weight: 500;
-	color: #212529;
+	color: var(--text-primary);
 	font-size: 14px;
+	transition: color 0.3s ease;
 }
 
 .entry-username {
-	color: #495057;
+	color: var(--text-secondary);
 	font-family: monospace;
 	font-size: 13px;
+	transition: color 0.3s ease;
 }
 
 .entry-password {
-	color: #6c757d;
+	color: var(--text-secondary);
 	font-family: monospace;
 	font-size: 13px;
-	background: white;
+	background: var(--bg-primary);
 	padding: 4px 8px;
 	border-radius: 3px;
-	border: 1px solid #dee2e6;
+	border: 1px solid var(--border-color);
+	transition: all 0.3s ease;
 }
 
 .entry-date {
-	color: #6c757d;
+	color: var(--text-secondary);
 	font-size: 12px;
 	font-style: italic;
+	transition: color 0.3s ease;
 }
 
 .delete-button {
 	background: transparent;
-	color: #6c757d;
+	color: var(--text-secondary);
 	border: none;
 	border-radius: 4px;
 	padding: 6px;
@@ -178,7 +247,7 @@
 
 .delete-button:hover {
 	background: rgba(220, 53, 69, 0.1);
-	color: #dc3545;
+	color: var(--danger-color);
 	transform: scale(1.1);
 }
 
@@ -190,6 +259,64 @@
 .delete-button svg {
 	width: 18px;
 	height: 18px;
+}
+
+.copy-button {
+	background: none;
+	border: none;
+	cursor: pointer;
+	font-size: 16px;
+	margin-left: 8px;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: all 0.2s ease;
+	min-width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-secondary);
+}
+
+.copy-button:hover {
+	background-color: var(--bg-tertiary);
+	transform: scale(1.1);
+	color: var(--text-primary);
+}
+
+.copy-button:active {
+	transform: scale(0.95);
+}
+
+.password-mask {
+	font-family: monospace;
+	letter-spacing: 2px;
+	color: var(--text-secondary);
+	transition: color 0.3s ease;
+}
+
+.entry-username,
+.entry-password {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.lock-screen {
+	text-align: center;
+	padding: 40px 20px;
+}
+
+.lock-screen .vault-title {
+	color: var(--danger-color);
+	margin-bottom: 20px;
+	transition: color 0.3s ease;
+}
+
+.lock-screen .security-info {
+	color: var(--text-secondary);
+	line-height: 1.6;
+	transition: color 0.3s ease;
 }
 
 @media (max-width: 600px) {
@@ -207,8 +334,5 @@
 	.delete-button {
 		justify-self: end;
 		margin-top: 5px;
-	}
-	.entry-date {
-		font-size: 11px;
 	}
 }
