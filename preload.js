@@ -1,31 +1,24 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Expose vault API
 contextBridge.exposeInMainWorld('vault', {
-	addEntry: entry => {
-		ipcRenderer.send('vault:activity');
-		return ipcRenderer.invoke('vault:addEntry', entry);
-	},
-	getEntries: password => {
-		ipcRenderer.send('vault:activity');
-		return ipcRenderer.invoke('vault:getEntries', password);
-	},
-	deleteEntry: id => {
-		ipcRenderer.send('vault:activity');
-		return ipcRenderer.invoke('vault:deleteEntry', id);
-	},
-	testMasterPassword: password => {
-		ipcRenderer.send('vault:activity');
-		return ipcRenderer.invoke('vault:testMasterPassword', password);
-	},
-	getSecurityInfo: () => {
-		ipcRenderer.send('vault:activity');
-		return ipcRenderer.invoke('vault:getSecurityInfo');
-	},
-	exportToFile: password => ipcRenderer.invoke('vault:export', password),
-	reportActivity: () => {
-		ipcRenderer.send('vault:activity');
-	},
-	onAutoLock: callback => {
-		ipcRenderer.on('vault:autoLock', callback);
-	},
+	addEntry: entry => ipcRenderer.invoke('vault:addEntry', entry),
+	getEntries: masterPassword => ipcRenderer.invoke('vault:getEntries', masterPassword),
+	deleteEntry: id => ipcRenderer.invoke('vault:deleteEntry', id),
+	testMasterPassword: masterPassword => ipcRenderer.invoke('vault:testMasterPassword', masterPassword),
+	getSecurityInfo: () => ipcRenderer.invoke('vault:getSecurityInfo'),
+	reportActivity: () => ipcRenderer.send('vault:activity'),
+	reportSecurityEvent: eventType => ipcRenderer.invoke('security:reportEvent', eventType),
+});
+
+// Expose security API
+contextBridge.exposeInMainWorld('security', {
+	getStatus: () => ipcRenderer.invoke('security:getStatus'),
+	reportEvent: eventType => ipcRenderer.invoke('security:reportEvent', eventType),
+});
+
+// Expose auto-lock listener
+ipcRenderer.on('vault:autoLock', () => {
+	// Dispatch custom event for the frontend to handle
+	window.dispatchEvent(new CustomEvent('vault:autoLock'));
 });

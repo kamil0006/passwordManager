@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import './VaultScreen.css';
 import type { Entry } from '../types/vault';
-import { Check, Copy, Key, Trash2 } from 'lucide-react';
+import { Check, Copy, Trash2 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import SecurityFeatures from './SecurityFeatures';
 
 type Props = {
 	masterPassword: string;
+	onAutoLock: () => void;
 };
 
-const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
+const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 	const [entries, setEntries] = useState<Entry[]>([]);
 	const [form, setForm] = useState({ name: '', username: '', password: '' });
 	const [isLoading, setIsLoading] = useState(false);
 	const [isAdding, setIsAdding] = useState(false);
-	const [isLocked, setIsLocked] = useState(false);
+	const [timeUntilLock, setTimeUntilLock] = useState(180); // 3 minutes
+	const [copiedItem, setCopiedItem] = useState<string | null>(null); // Track what was copied
+	const [searchQuery, setSearchQuery] = useState(''); // Search functionality
 
 	const loadEntries = async () => {
 		try {
@@ -44,43 +47,61 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 		}
 	};
 
+	useEffect(() => {
+		loadEntries();
+		loadSecurityInfo();
+	}, [masterPassword]);
+
 	// Auto-lock functionality
 	useEffect(() => {
 		const handleAutoLock = () => {
-			setIsLocked(true);
+			console.log('[VaultScreen] Auto-lock triggered');
+			// Clear entries and trigger auto-lock callback
 			setEntries([]);
+			onAutoLock();
 		};
 
-		// Set up auto-lock listener
-		if (window.vault && window.vault.onAutoLock) {
-			window.vault.onAutoLock(handleAutoLock);
-		}
+		// Countdown timer for auto-lock
+		const countdownInterval = setInterval(() => {
+			setTimeUntilLock(prev => {
+				if (prev <= 1) {
+					// Auto-lock triggered
+					handleAutoLock();
+					return 180;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+
+		// Set up auto-lock listener using the custom event
+		window.addEventListener('vault:autoLock', handleAutoLock);
 
 		// Activity tracking
 		const updateActivity = () => {
 			if (window.vault && window.vault.reportActivity) {
 				window.vault.reportActivity();
 			}
+			// Reset auto-lock timer on activity
+			setTimeUntilLock(180);
 		};
 
 		// Track user activity
 		document.addEventListener('mousemove', updateActivity);
 		document.addEventListener('keypress', updateActivity);
 		document.addEventListener('click', updateActivity);
+		document.addEventListener('input', updateActivity);
+		document.addEventListener('focus', updateActivity);
 
 		return () => {
+			clearInterval(countdownInterval);
+			window.removeEventListener('vault:autoLock', handleAutoLock);
 			document.removeEventListener('mousemove', updateActivity);
 			document.removeEventListener('keypress', updateActivity);
 			document.removeEventListener('click', updateActivity);
+			document.removeEventListener('input', updateActivity);
+			document.removeEventListener('focus', updateActivity);
 		};
 	}, []);
-
-	useEffect(() => {
-		if (!isLocked) {
-			loadEntries();
-			loadSecurityInfo();
-		}
-	}, [masterPassword, isLocked]);
 
 	const resetForm = () => {
 		setForm({ name: '', username: '', password: '' });
@@ -148,8 +169,8 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 		}
 	};
 
-	// Clipboard protection
-	const copyToClipboard = async (text: string, type: string) => {
+	// Enhanced clipboard protection with feedback
+	const copyToClipboard = async (text: string, type: string, id: string) => {
 		try {
 			if (!navigator.clipboard) {
 				console.warn('[VaultScreen] Clipboard API not available');
@@ -158,6 +179,10 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 
 			await navigator.clipboard.writeText(text);
 			console.log(`[VaultScreen] ${type} copied to clipboard`);
+
+			// Show "Copied!" feedback
+			setCopiedItem(id);
+			setTimeout(() => setCopiedItem(null), 2000); // Hide after 2 seconds
 
 			// Clear clipboard after 30 seconds for security
 			setTimeout(async () => {
@@ -173,6 +198,57 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 		}
 	};
 
+	// Password strength calculation
+	const calculatePasswordStrength = (password: string) => {
+		if (!password) return { score: 0, strength: 'none', color: '#6b7280' };
+
+		let score = 0;
+		const checks = {
+			length: password.length >= 8,
+			uppercase: /[A-Z]/.test(password),
+			lowercase: /[a-z]/.test(password),
+			numbers: /\d/.test(password),
+			special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+		};
+
+		// Score based on checks passed
+		Object.values(checks).forEach(passed => {
+			if (passed) score++;
+		});
+
+		// Bonus for length
+		if (password.length >= 12) score++;
+		if (password.length >= 16) score++;
+
+		// Determine strength and color
+		let strength: string;
+		let color: string;
+
+		if (score <= 2) {
+			strength = 'weak';
+			color = '#ef4444'; // Red
+		} else if (score <= 4) {
+			strength = 'medium';
+			color = '#f59e0b'; // Yellow
+		} else if (score <= 6) {
+			strength = 'strong';
+			color = '#10b981'; // Green
+		} else {
+			strength = 'very strong';
+			color = '#059669'; // Dark green
+		}
+
+		return { score, strength, color, checks };
+	};
+
+	// Filter entries based on search query (only service name and username for security)
+	const filteredEntries = entries.filter(entry => {
+		if (!searchQuery.trim()) return true;
+
+		const query = searchQuery.toLowerCase();
+		return entry.name.toLowerCase().includes(query) || (entry.username && entry.username.toLowerCase().includes(query));
+	});
+
 	const formatDate = (dateString?: string) => {
 		if (!dateString) return 'Unknown';
 		try {
@@ -183,28 +259,23 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 		}
 	};
 
-	// If locked, show lock screen
-	if (isLocked) {
-		return (
-			<div className='vault-container'>
-				<ThemeToggle />
-				<SecurityFeatures />
-				<div className='vault-card'>
-					<h1 className='vault-title'>Vault Locked</h1>
-					<div className='security-info'>
-						Your vault has been automatically locked due to inactivity.
-						<br />
-						Please restart the application and enter your master password again.
-					</div>
-				</div>
-			</div>
-		);
-	}
-
 	return (
 		<div className='vault-container'>
-			<ThemeToggle />
-			<SecurityFeatures />
+			<div className='vault-header'>
+				<ThemeToggle />
+				<div className='auto-lock-display'>
+					<span className='auto-lock-label'>Auto-lock in:</span>
+					<span
+						className='auto-lock-timer'
+						style={{
+							color: timeUntilLock <= 30 ? '#ef4444' : timeUntilLock <= 60 ? '#f59e0b' : '#10b981',
+						}}>
+						{Math.floor(timeUntilLock / 60)}:{(timeUntilLock % 60).toString().padStart(2, '0')}
+					</span>
+				</div>
+				<SecurityFeatures />
+			</div>
+
 			<div className='vault-card'>
 				<h1 className='vault-title'>Password Manager</h1>
 
@@ -240,6 +311,37 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 							className='add-entry-input'
 							disabled={isAdding}
 						/>
+						{/* Password Strength Indicator */}
+						{form.password && (
+							<div className='password-strength-container'>
+								<div className='password-strength-bars'>
+									{Array.from({ length: 6 }, (_, i) => {
+										const strength = calculatePasswordStrength(form.password);
+										const isActive = i < strength.score;
+										return (
+											<div
+												key={i}
+												className={`strength-bar ${isActive ? 'active' : ''}`}
+												style={{
+													backgroundColor: isActive ? strength.color : 'var(--border-color)',
+												}}
+											/>
+										);
+									})}
+								</div>
+								<div
+									className='password-strength-text'
+									style={{ color: calculatePasswordStrength(form.password).color }}>
+									{calculatePasswordStrength(form.password).strength}
+								</div>
+							</div>
+						)}
+						{/* Password Requirements Hint */}
+						{!form.password && (
+							<div className='password-hint'>
+								<span>💡 Use 8+ chars, uppercase, lowercase, numbers, and symbols</span>
+							</div>
+						)}
 						<button onClick={handleAdd} className='add-entry-button' disabled={isAdding}>
 							{isAdding ? '...' : <Check size={18} />}
 						</button>
@@ -248,7 +350,24 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 
 				{/* Entries List */}
 				<div className='entries-section'>
-					<h3 className='entries-title'>Saved Passwords</h3>
+					<div className='entries-header'>
+						<h3 className='entries-title'>Saved Passwords</h3>
+						{/* Search Bar */}
+						<div className='search-container'>
+							<input
+								type='text'
+								placeholder='Search by service or username...'
+								value={searchQuery}
+								onChange={e => setSearchQuery(e.target.value)}
+								className='search-input'
+							/>
+							{searchQuery && (
+								<button onClick={() => setSearchQuery('')} className='search-clear' title='Clear search'>
+									×
+								</button>
+							)}
+						</div>
+					</div>
 					{isLoading ? (
 						<div className='loading-indicator'>
 							<div className='spinner'></div>
@@ -257,35 +376,45 @@ const VaultScreen: React.FC<Props> = ({ masterPassword }) => {
 					) : entries.length === 0 ? (
 						<div className='no-entries'>No passwords saved yet. Add your first entry above!</div>
 					) : (
-						<div className='entries-list'>
-							{entries.map(entry => (
-								<div key={entry.id} className='entry-card'>
-									<div className='entry-name'>{entry.name}</div>
-									<div className='entry-username'>
-										{entry.username || 'No username'}
-										<button
-											onClick={() => copyToClipboard(entry.username || '', 'Username')}
-											className='copy-button'
-											title='Copy username'>
-											<Copy size={16} />
-										</button>
-									</div>
-									<div className='entry-password'>
-										<span className='password-mask'>••••••••</span>
-										<button
-											onClick={() => copyToClipboard(entry.password, 'Password')}
-											className='copy-button'
-											title='Copy password'>
-											<Key size={16} />
-										</button>
-									</div>
-									<div className='entry-date'>{formatDate(entry.created_at)}</div>
-									<button onClick={() => handleDelete(entry.id)} className='delete-button' title='Delete this entry'>
-										<Trash2 size={16} />
-									</button>
+						<>
+							{/* Search Results Info */}
+							{searchQuery && (
+								<div className='search-results-info'>
+									<span>
+										Found {filteredEntries.length} of {entries.length} entries
+									</span>
 								</div>
-							))}
-						</div>
+							)}
+							<div className='entries-list'>
+								{filteredEntries.map(entry => (
+									<div key={entry.id} className='entry-card'>
+										<div className='entry-name'>{entry.name}</div>
+										<div className='entry-username'>
+											{entry.username || 'No username'}
+											<button
+												onClick={() => copyToClipboard(entry.username || '', 'Username', `username-${entry.id}`)}
+												className='copy-button'
+												title='Copy username'>
+												{copiedItem === `username-${entry.id}` ? <Check size={16} /> : <Copy size={16} />}
+											</button>
+										</div>
+										<div className='entry-password'>
+											<span className='password-mask'>••••••••</span>
+											<button
+												onClick={() => copyToClipboard(entry.password, 'Password', `password-${entry.id}`)}
+												className='copy-button'
+												title='Copy password'>
+												{copiedItem === `password-${entry.id}` ? <Check size={16} /> : <Copy size={16} />}
+											</button>
+										</div>
+										<div className='entry-date'>{formatDate(entry.created_at)}</div>
+										<button onClick={() => handleDelete(entry.id)} className='delete-button' title='Delete this entry'>
+											<Trash2 size={16} />
+										</button>
+									</div>
+								))}
+							</div>
+						</>
 					)}
 				</div>
 			</div>

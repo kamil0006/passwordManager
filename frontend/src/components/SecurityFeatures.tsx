@@ -1,267 +1,316 @@
-import React, { useEffect, useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SecurityFeatures.css';
+import { Shield, CheckCircle, AlertTriangle, X, AlertCircle, Lock, Eye } from 'lucide-react';
 
 interface SecurityStatus {
-	clipboardProtected: boolean;
-	screenCaptureDetected: boolean;
-	networkIsolated: boolean;
-	keyloggerProtected: boolean;
-	lastSecurityCheck: Date;
+	encryptionActive: boolean;
+	autoLockActive: boolean;
+	clipboardProtection: boolean;
+	networkIsolation: boolean;
+	developerToolsBlocked: boolean;
+	contextMenuBlocked: boolean;
+	threatLevel?: 'low' | 'medium' | 'high';
+	sessionId?: string;
+	failedAttempts?: number;
+	lastSecurityCheck?: number;
 }
 
 const SecurityFeatures: React.FC = () => {
-	const [securityStatus, setSecurityStatus] = useState<SecurityStatus>({
-		clipboardProtected: true,
-		screenCaptureDetected: false,
-		networkIsolated: true,
-		keyloggerProtected: true,
-		lastSecurityCheck: new Date(),
-	});
+	const [securityStatus, setSecurityStatus] = useState<SecurityStatus | null>(null);
+	const [isExpanded, setIsExpanded] = useState(false);
+	const [timeUntilLock, setTimeUntilLock] = useState(180); // 3 minutes (180 seconds)
+	const [threatIndicator, setThreatIndicator] = useState<'low' | 'medium' | 'high'>('low');
+	const panelRef = useRef<HTMLDivElement>(null);
+	const buttonRef = useRef<HTMLButtonElement>(null);
 
-	const [showSecurityPanel, setShowSecurityPanel] = useState(false);
-
+	// Reset timer when panel is opened
 	useEffect(() => {
-		console.log('[SecurityFeatures] Component mounted, starting security checks...');
+		if (isExpanded) {
+			setTimeUntilLock(180);
+		}
+	}, [isExpanded]);
 
-		// Check for screen capture attempts - improved logic to avoid false positives
-		const checkScreenCapture = () => {
+	// Countdown timer
+	useEffect(() => {
+		if (!isExpanded) return;
+
+		const interval = setInterval(() => {
+			setTimeUntilLock(prev => {
+				if (prev <= 1) {
+					// Auto-lock triggered
+					setIsExpanded(false);
+					return 180;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+
+		return () => clearInterval(interval);
+	}, [isExpanded]);
+
+	// Get security status from main process
+	useEffect(() => {
+		const getStatus = async () => {
 			try {
-				// Only detect actual screen capture attempts, not just API availability
-				// Most modern browsers have these APIs available but they're not necessarily threats
-				const hasScreenCaptureAPIs =
-					'getDisplayMedia' in navigator ||
-					('mediaDevices' in navigator && 'getDisplayMedia' in navigator.mediaDevices) ||
-					'webkitGetUserMedia' in navigator ||
-					'mozGetUserMedia' in navigator;
-
-				// For now, we'll assume it's safe unless we detect actual usage
-				// In a real implementation, we'd monitor for actual API calls
-				const isScreenCaptureActive = false; // Assume no active capture
-
-				console.log('[SecurityFeatures] Screen capture APIs available:', hasScreenCaptureAPIs);
-				console.log('[SecurityFeatures] Screen capture active:', isScreenCaptureActive);
-
-				setSecurityStatus(prev => ({
-					...prev,
-					screenCaptureDetected: isScreenCaptureActive,
-					lastSecurityCheck: new Date(),
-				}));
-			} catch (error) {
-				console.warn('Screen capture detection error:', error);
-			}
-		};
-
-		// Monitor clipboard access
-		const checkClipboardAccess = () => {
-			try {
-				if ('clipboard' in navigator) {
-					console.log('[SecurityFeatures] Clipboard API available');
-					setSecurityStatus(prev => ({
-						...prev,
-						clipboardProtected: true,
-						lastSecurityCheck: new Date(),
-					}));
-				} else {
-					console.log('[SecurityFeatures] Clipboard API not available');
-					setSecurityStatus(prev => ({
-						...prev,
-						clipboardProtected: false,
-						lastSecurityCheck: new Date(),
-					}));
+				if (window.security && window.security.getStatus) {
+					const status = await window.security.getStatus();
+					setSecurityStatus(status);
+					if (status.threatLevel) {
+						setThreatIndicator(status.threatLevel);
+					}
 				}
 			} catch (error) {
-				console.warn('Clipboard monitoring error:', error);
+				console.error('[SecurityFeatures] Error getting security status:', error);
 			}
 		};
 
-		// Check network isolation
-		const checkNetworkIsolation = () => {
-			try {
-				// Check if running in Electron (offline mode)
-				const isElectron = window.navigator.userAgent.toLowerCase().indexOf('electron') > -1;
-				console.log('[SecurityFeatures] Network isolation check:', isElectron);
+		getStatus();
 
-				setSecurityStatus(prev => ({
-					...prev,
-					networkIsolated: isElectron,
-					lastSecurityCheck: new Date(),
-				}));
-			} catch (error) {
-				console.warn('Network isolation check error:', error);
-			}
-		};
-
-		// Check keylogger protection
-		const checkKeyloggerProtection = () => {
-			try {
-				// Basic keylogger protection check
-				// In a real implementation, this would check for suspicious processes
-				console.log('[SecurityFeatures] Keylogger protection check: true');
-				setSecurityStatus(prev => ({
-					...prev,
-					keyloggerProtected: true, // Assume protected for now
-					lastSecurityCheck: new Date(),
-				}));
-			} catch (error) {
-				console.warn('Keylogger protection check error:', error);
-			}
-		};
-
-		// Initial security check
-		console.log('[SecurityFeatures] Running initial security checks...');
-		checkScreenCapture();
-		checkClipboardAccess();
-		checkNetworkIsolation();
-		checkKeyloggerProtection();
-
-		// Set up periodic security checks
-		const securityInterval = setInterval(() => {
-			console.log('[SecurityFeatures] Running periodic security checks...');
-			checkScreenCapture();
-			checkClipboardAccess();
-			checkNetworkIsolation();
-			checkKeyloggerProtection();
-		}, 30000); // Check every 30 seconds
-
-		return () => {
-			console.log('[SecurityFeatures] Component unmounting, clearing interval...');
-			clearInterval(securityInterval);
-		};
+		// Update status every 30 seconds
+		const interval = setInterval(getStatus, 30000);
+		return () => clearInterval(interval);
 	}, []);
 
-	// Log security status changes
+	// Click outside to close
 	useEffect(() => {
-		console.log('[SecurityFeatures] Security status updated:', securityStatus);
-	}, [securityStatus]);
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				panelRef.current &&
+				!panelRef.current.contains(event.target as Node) &&
+				buttonRef.current &&
+				!buttonRef.current.contains(event.target as Node)
+			) {
+				setIsExpanded(false);
+			}
+		};
 
-	const getSecurityIcon = (status: boolean) => {
-		if (status) {
-			return <CheckCircle size={16} className='security-icon success' />;
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
+	const handleClose = () => {
+		setIsExpanded(false);
+	};
+
+	const getStatusIcon = (status: boolean) => {
+		return status ? (
+			<CheckCircle size={16} className='status-icon status-active' />
+		) : (
+			<AlertTriangle size={16} className='status-icon status-inactive' />
+		);
+	};
+
+	const getStatusText = (status: boolean) => {
+		return status ? 'Active' : 'Inactive';
+	};
+
+	const getStatusClass = (status: boolean) => {
+		return status ? 'status-active' : 'status-inactive';
+	};
+
+	const formatTime = (seconds: number) => {
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		if (minutes > 0) {
+			return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 		}
-		return <AlertTriangle size={16} className='security-icon warning' />;
+		return `${remainingSeconds}s`;
 	};
 
-	const getSecurityMessage = (status: boolean, type: string) => {
-		if (status) {
-			return `${type} protection active`;
+	const getTimeUntilLockColor = (seconds: number) => {
+		if (seconds <= 30) return '#ef4444'; // Red (last 30 seconds)
+		if (seconds <= 60) return '#f59e0b'; // Yellow (last minute)
+		return '#10b981'; // Green (more than 1 minute)
+	};
+
+	const getThreatLevelIcon = (level: string) => {
+		switch (level) {
+			case 'high':
+				return <AlertCircle size={20} className='threat-icon threat-high' />;
+			case 'medium':
+				return <AlertTriangle size={20} className='threat-icon threat-medium' />;
+			default:
+				return <Shield size={20} className='threat-icon threat-low' />;
 		}
-		return `${type} protection needed`;
 	};
 
-	const getOverallSecurityStatus = () => {
-		const { clipboardProtected, screenCaptureDetected, networkIsolated, keyloggerProtected } = securityStatus;
-		const allProtected = clipboardProtected && !screenCaptureDetected && networkIsolated && keyloggerProtected;
-		const status = allProtected ? 'success' : 'warning';
-		console.log('[SecurityFeatures] Overall security status:', status, {
-			clipboardProtected,
-			screenCaptureDetected,
-			networkIsolated,
-			keyloggerProtected,
-		});
-		return status;
+	const getThreatLevelColor = (level: string) => {
+		switch (level) {
+			case 'high':
+				return '#ef4444';
+			case 'medium':
+				return '#f59e0b';
+			default:
+				return '#10b981';
+		}
 	};
 
-	// Test function to simulate security threats
-	const testSecurityThreat = () => {
-		console.log('[SecurityFeatures] Testing security threat simulation...');
-		setSecurityStatus(prev => ({
-			...prev,
-			screenCaptureDetected: true,
-			lastSecurityCheck: new Date(),
-		}));
-
-		// Reset after 5 seconds
-		setTimeout(() => {
-			setSecurityStatus(prev => ({
-				...prev,
-				screenCaptureDetected: false,
-				lastSecurityCheck: new Date(),
-			}));
-		}, 5000);
+	const getThreatLevelText = (level: string) => {
+		switch (level) {
+			case 'high':
+				return 'High Threat';
+			case 'medium':
+				return 'Medium Threat';
+			default:
+				return 'Secure';
+		}
 	};
 
 	return (
-		<>
-			{/* Security Status Indicator */}
+		<div className='security-features'>
 			<button
-				className={`security-status-button ${getOverallSecurityStatus()}`}
-				onClick={() => {
-					console.log('[SecurityFeatures] Security button clicked, toggling panel...');
-					setShowSecurityPanel(!showSecurityPanel);
-				}}
-				title='Security Status'>
-				<Shield size={20} />
-				{securityStatus.screenCaptureDetected && <span className='security-alert'>!</span>}
+				ref={buttonRef}
+				onClick={() => setIsExpanded(!isExpanded)}
+				className='security-toggle'
+				title='Security Features'>
+				<Shield size={28} />
+				{isExpanded && (
+					<div className='auto-lock-indicator' style={{ color: getTimeUntilLockColor(timeUntilLock) }}>
+						{formatTime(timeUntilLock)}
+					</div>
+				)}
+				{/* Threat level indicator */}
+				<div
+					className='threat-indicator'
+					style={{ backgroundColor: getThreatLevelColor(threatIndicator) }}
+					title={getThreatLevelText(threatIndicator)}
+				/>
 			</button>
 
-			{/* Security Panel */}
-			{showSecurityPanel && (
-				<div className='security-panel'>
-					<div className='security-panel-header'>
+			{isExpanded && (
+				<div ref={panelRef} className='security-panel'>
+					<div className='security-header'>
 						<h3>Security Status</h3>
-						<button className='close-button' onClick={() => setShowSecurityPanel(false)}>
-							×
+						<button onClick={handleClose} className='close-button' title='Close'>
+							<X size={16} />
 						</button>
 					</div>
 
-					<div className='security-items'>
-						<div className='security-item'>
-							{getSecurityIcon(securityStatus.clipboardProtected)}
-							<div className='security-item-text'>
-								<div className='security-item-title'>Clipboard Protection</div>
-								<div className='security-item-status'>
-									{getSecurityMessage(securityStatus.clipboardProtected, 'Clipboard')}
+					{securityStatus ? (
+						<>
+							{/* Threat Level Display */}
+							<div className='threat-level-section'>
+								<div className='threat-level-header'>
+									{getThreatLevelIcon(threatIndicator)}
+									<span className='threat-level-text'>{getThreatLevelText(threatIndicator)}</span>
+								</div>
+								{threatIndicator !== 'low' && (
+									<div className='threat-warning'>⚠️ Security threats detected. Review system immediately.</div>
+								)}
+							</div>
+
+							<div className='security-grid'>
+								<div className='security-info-item'>
+									<div className='info-header'>
+										<span>Encryption</span>
+										{getStatusIcon(securityStatus.encryptionActive)}
+									</div>
+									<div className={`status ${getStatusClass(securityStatus.encryptionActive)}`}>
+										{getStatusText(securityStatus.encryptionActive)}
+									</div>
+								</div>
+
+								<div className='security-info-item'>
+									<div className='info-header'>
+										<span>Auto-Lock</span>
+										{getStatusIcon(securityStatus.autoLockActive)}
+									</div>
+									<div className={`status ${getStatusClass(securityStatus.autoLockActive)}`}>
+										{getStatusText(securityStatus.autoLockActive)}
+									</div>
+								</div>
+
+								<div className='security-info-item'>
+									<div className='info-header'>
+										<span>Clipboard Protection</span>
+										{getStatusIcon(securityStatus.clipboardProtection)}
+									</div>
+									<div className={`status ${getStatusClass(securityStatus.clipboardProtection)}`}>
+										{getStatusText(securityStatus.clipboardProtection)}
+									</div>
+								</div>
+
+								<div className='security-info-item'>
+									<div className='info-header'>
+										<span>Network Isolation</span>
+										{getStatusIcon(securityStatus.networkIsolation)}
+									</div>
+									<div className={`status ${getStatusClass(securityStatus.networkIsolation)}`}>
+										{getStatusText(securityStatus.networkIsolation)}
+									</div>
+								</div>
+
+								<div className='security-info-item'>
+									<div className='info-header'>
+										<span>Dev Tools Blocked</span>
+										{getStatusIcon(securityStatus.developerToolsBlocked)}
+									</div>
+									<div className={`status ${getStatusClass(securityStatus.developerToolsBlocked)}`}>
+										{getStatusText(securityStatus.developerToolsBlocked)}
+									</div>
+								</div>
+
+								<div className='security-info-item'>
+									<div className='info-header'>
+										<span>Context Menu Blocked</span>
+										{getStatusIcon(securityStatus.contextMenuBlocked)}
+									</div>
+									<div className={`status ${getStatusClass(securityStatus.contextMenuBlocked)}`}>
+										{getStatusText(securityStatus.contextMenuBlocked)}
+									</div>
 								</div>
 							</div>
-						</div>
 
-						<div className='security-item'>
-							{getSecurityIcon(!securityStatus.screenCaptureDetected)}
-							<div className='security-item-text'>
-								<div className='security-item-title'>Screen Capture Detection</div>
-								<div className='security-item-status'>
-									{getSecurityMessage(!securityStatus.screenCaptureDetected, 'Screen capture')}
+							{/* Enhanced Security Info */}
+							{securityStatus.sessionId && (
+								<div className='security-details'>
+									<div className='detail-item'>
+										<Lock size={14} />
+										<span>Session ID: {securityStatus.sessionId.substring(0, 8)}...</span>
+									</div>
+									{securityStatus.failedAttempts !== undefined && (
+										<div className='detail-item'>
+											<AlertTriangle size={14} />
+											<span>Failed Attempts: {securityStatus.failedAttempts}</span>
+										</div>
+									)}
+									{securityStatus.lastSecurityCheck && (
+										<div className='detail-item'>
+											<Eye size={14} />
+											<span>Last Check: {new Date(securityStatus.lastSecurityCheck).toLocaleTimeString()}</span>
+										</div>
+									)}
 								</div>
+							)}
+
+							<div className='security-footer'>
+								<p className='security-note'>
+									<strong>Auto-Lock Timer:</strong> {formatTime(timeUntilLock)} until vault locks
+								</p>
+								<p className='security-note'>
+									<strong>Security Level:</strong> Enhanced with real-time threat detection
+								</p>
 							</div>
+						</>
+					) : (
+						<div className='security-loading'>
+							<div className='loading-icon'></div>
+							<span>Loading security status...</span>
 						</div>
-
-						<div className='security-item'>
-							{getSecurityIcon(securityStatus.networkIsolated)}
-							<div className='security-item-text'>
-								<div className='security-item-title'>Network Isolation</div>
-								<div className='security-item-status'>
-									{getSecurityMessage(securityStatus.networkIsolated, 'Network')}
-								</div>
-							</div>
-						</div>
-
-						<div className='security-item'>
-							{getSecurityIcon(securityStatus.keyloggerProtected)}
-							<div className='security-item-text'>
-								<div className='security-item-title'>Keylogger Protection</div>
-								<div className='security-item-status'>
-									{getSecurityMessage(securityStatus.keyloggerProtected, 'Keylogger')}
-								</div>
-							</div>
-						</div>
-					</div>
-
-					{/* Test button for debugging */}
-					<div className='security-test-section'>
-						<button
-							onClick={testSecurityThreat}
-							className='security-test-button'
-							title='Test security threat detection'>
-							Test Security Alert
-						</button>
-					</div>
-
-					<div className='security-footer'>Last checked: {securityStatus.lastSecurityCheck.toLocaleTimeString()}</div>
+					)}
 				</div>
 			)}
-		</>
+		</div>
 	);
 };
 
 export default SecurityFeatures;
+
+declare global {
+	interface Window {
+		security?: {
+			getStatus: () => Promise<SecurityStatus>;
+			reportEvent: (eventType: string) => Promise<{ success: boolean }>;
+		};
+	}
+}
