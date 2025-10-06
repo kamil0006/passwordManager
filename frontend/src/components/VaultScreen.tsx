@@ -32,6 +32,8 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 	const [copiedItem, setCopiedItem] = useState<string | null>(null); // Track what was copied
 	const [searchQuery, setSearchQuery] = useState(''); // Search functionality
 	const [selectedCategory, setSelectedCategory] = useState('all'); // Category filter
+	const [showCategoryModal, setShowCategoryModal] = useState(false); // Category selection modal
+	const [categoryManuallySelected, setCategoryManuallySelected] = useState(false); // Track if user manually selected category
 
 	// Helper function to render category icon
 	const renderCategoryIcon = (iconName: string, size: number = 16) => {
@@ -78,16 +80,21 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 		const selectedCategory = categories.find(cat => cat.id === value);
 		const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-		// Close dropdown when clicking outside
+		// Close dropdown when clicking outside (disabled for form elements)
 		React.useEffect(() => {
+			// Don't add click outside handler if this is a form dropdown
+			if (className.includes('category-select')) {
+				return;
+			}
+
 			const handleClickOutside = (event: MouseEvent) => {
-				if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+				const target = event.target as HTMLElement;
+				if (dropdownRef.current && !dropdownRef.current.contains(target)) {
 					setIsOpen(false);
 				}
 			};
 
 			if (isOpen) {
-				// Add a small delay to prevent immediate closing
 				const timeoutId = setTimeout(() => {
 					document.addEventListener('click', handleClickOutside);
 				}, 100);
@@ -97,7 +104,7 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 					document.removeEventListener('click', handleClickOutside);
 				};
 			}
-		}, [isOpen]);
+		}, [isOpen, className]);
 
 		return (
 			<div
@@ -202,10 +209,9 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 			setTimeUntilLock(180);
 		};
 
-		// Track user activity
+		// Track user activity (desktop app - no click tracking to avoid interference)
 		document.addEventListener('mousemove', updateActivity);
 		document.addEventListener('keypress', updateActivity);
-		document.addEventListener('click', updateActivity);
 		document.addEventListener('input', updateActivity);
 		document.addEventListener('focus', updateActivity);
 
@@ -214,7 +220,6 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 			window.removeEventListener('vault:autoLock', handleAutoLock);
 			document.removeEventListener('mousemove', updateActivity);
 			document.removeEventListener('keypress', updateActivity);
-			document.removeEventListener('click', updateActivity);
 			document.removeEventListener('input', updateActivity);
 			document.removeEventListener('focus', updateActivity);
 		};
@@ -222,6 +227,7 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 
 	const resetForm = () => {
 		setForm({ name: '', username: '', password: '', category: 'personal' });
+		setCategoryManuallySelected(false);
 	};
 
 	const handleAdd = async () => {
@@ -330,10 +336,17 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 		return entry.name.toLowerCase().includes(query) || (entry.username && entry.username.toLowerCase().includes(query));
 	});
 
-	// Auto-suggest category when service name changes
+	// Auto-suggest category when service name changes (only if category hasn't been manually changed)
 	const handleServiceNameChange = (name: string) => {
-		const suggestedCategory = suggestCategory(name);
-		setForm(prev => ({ ...prev, name, category: suggestedCategory }));
+		setForm(prev => {
+			// Only auto-suggest if the user hasn't manually selected a category yet
+			if (!categoryManuallySelected) {
+				const suggestedCategory = suggestCategory(name);
+				return { ...prev, name, category: suggestedCategory };
+			}
+			// If user has manually selected a category, keep it and only update the name
+			return { ...prev, name };
+		});
 	};
 
 	const formatDate = (dateString?: string) => {
@@ -409,23 +422,52 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 								disabled={isAdding}
 								required
 							/>
-							<select
-								value={form.category}
-								onChange={e => setForm({ ...form, category: e.target.value })}
-								className='form-input'
+							<button
+								type='button'
+								className='category-selector-button'
+								onClick={() => setShowCategoryModal(true)}
 								disabled={isAdding}>
-								{DEFAULT_CATEGORIES.map(category => (
-									<option key={category.id} value={category.id}>
-										{category.name}
-									</option>
-								))}
-							</select>
+								{renderCategoryIcon(DEFAULT_CATEGORIES.find(cat => cat.id === form.category)?.icon || 'Key', 16)}
+								<span>{DEFAULT_CATEGORIES.find(cat => cat.id === form.category)?.name || 'Select Category'}</span>
+								<span className='selector-arrow'>▼</span>
+							</button>
 						</div>
 						<button type='submit' className='submit-button' disabled={isAdding}>
 							{isAdding ? 'Adding...' : 'Add Entry'}
 						</button>
 					</form>
 				</div>
+
+				{/* Category Selection Modal */}
+				{showCategoryModal && (
+					<div className='modal-overlay' onClick={() => setShowCategoryModal(false)}>
+						<div className='category-modal' onClick={e => e.stopPropagation()}>
+							<div className='modal-header'>
+								<h3>Select Category</h3>
+								<button className='modal-close' onClick={() => setShowCategoryModal(false)} title='Close'>
+									×
+								</button>
+							</div>
+							<div className='category-grid'>
+								{DEFAULT_CATEGORIES.map(category => (
+									<div
+										key={category.id}
+										className={`category-option ${form.category === category.id ? 'selected' : ''}`}
+										onClick={() => {
+											setForm({ ...form, category: category.id });
+											setCategoryManuallySelected(true);
+											setShowCategoryModal(false);
+										}}>
+										<div className='category-icon-wrapper' style={{ backgroundColor: category.color }}>
+											{renderCategoryIcon(category.icon, 24)}
+										</div>
+										<span className='category-name'>{category.name}</span>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				)}
 
 				{/* Entries List */}
 				<div className='entries-section'>
