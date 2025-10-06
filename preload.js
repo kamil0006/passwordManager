@@ -8,13 +8,11 @@ contextBridge.exposeInMainWorld('vault', {
 	testMasterPassword: masterPassword => ipcRenderer.invoke('vault:testMasterPassword', masterPassword),
 	getSecurityInfo: () => ipcRenderer.invoke('vault:getSecurityInfo'),
 	reportActivity: () => ipcRenderer.send('vault:activity'),
-	reportSecurityEvent: eventType => ipcRenderer.invoke('security:reportEvent', eventType),
 });
 
 // Expose security API
 contextBridge.exposeInMainWorld('security', {
 	getStatus: () => ipcRenderer.invoke('security:getStatus'),
-	reportEvent: eventType => ipcRenderer.invoke('security:reportEvent', eventType),
 });
 
 // Expose auto-lock listener

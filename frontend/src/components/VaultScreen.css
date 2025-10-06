@@ -213,6 +213,107 @@ select.form-input:focus {
 	color: var(--text-secondary);
 }
 
+/* Category Filter Button */
+.category-filter-button {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: 6px;
+	background-color: var(--bg-primary);
+	color: var(--text-primary);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-size: 14px;
+	min-width: 160px;
+	justify-content: space-between;
+}
+
+.category-filter-button:hover {
+	border-color: var(--accent-color);
+	background-color: var(--bg-secondary);
+}
+
+.filter-arrow {
+	font-size: 10px;
+	color: var(--text-secondary);
+}
+
+/* Delete Confirmation Modal */
+.delete-modal {
+	background-color: var(--bg-primary);
+	border-radius: 12px;
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+	max-width: 400px;
+	width: 90%;
+	max-height: 90vh;
+	overflow: hidden;
+	position: relative;
+}
+
+.delete-content {
+	padding: 24px;
+	text-align: center;
+}
+
+.delete-icon {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 80px;
+	height: 80px;
+	margin: 0 auto 20px;
+	background-color: #fef2f2;
+	border-radius: 50%;
+	color: #dc2626;
+}
+
+.delete-message {
+	margin: 0 0 24px;
+	color: var(--text-primary);
+	font-size: 16px;
+	line-height: 1.5;
+}
+
+.delete-actions {
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+}
+
+.delete-cancel,
+.delete-confirm {
+	padding: 10px 20px;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	border: none;
+	min-width: 80px;
+}
+
+.delete-cancel {
+	background-color: var(--bg-secondary);
+	color: var(--text-primary);
+	border: 1px solid var(--border-color);
+}
+
+.delete-cancel:hover {
+	background-color: var(--bg-tertiary);
+	border-color: var(--accent-color);
+}
+
+.delete-confirm {
+	background-color: #dc2626;
+	color: white;
+}
+
+.delete-confirm:hover {
+	background-color: #b91c1c;
+}
+
 /* Category Selection Modal */
 .modal-overlay {
 	position: fixed;
@@ -373,14 +474,6 @@ select.form-input:focus {
 	margin-bottom: 15px;
 	flex-wrap: wrap;
 	gap: 15px;
-}
-
-.entries-title {
-	margin: 0;
-	color: var(--text-primary);
-	font-size: 1rem;
-	font-weight: 500;
-	transition: color 0.3s ease;
 }
 
 /* Search Styles */

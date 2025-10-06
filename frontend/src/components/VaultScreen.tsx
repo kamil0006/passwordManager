@@ -13,6 +13,7 @@ import {
 	Gamepad2,
 	Zap,
 	Key,
+	Search,
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import SecurityFeatures from './SecurityFeatures';
@@ -33,6 +34,9 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 	const [searchQuery, setSearchQuery] = useState(''); // Search functionality
 	const [selectedCategory, setSelectedCategory] = useState('all'); // Category filter
 	const [showCategoryModal, setShowCategoryModal] = useState(false); // Category selection modal
+	const [showFilterModal, setShowFilterModal] = useState(false); // Category filter modal
+	const [showDeleteModal, setShowDeleteModal] = useState(false); // Delete confirmation modal
+	const [entryToDelete, setEntryToDelete] = useState<number | null>(null); // Entry ID to delete
 	const [categoryManuallySelected, setCategoryManuallySelected] = useState(false); // Track if user manually selected category
 
 	// Helper function to render category icon
@@ -58,89 +62,6 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 			default:
 				return <Key {...iconProps} />;
 		}
-	};
-
-	// Custom dropdown component for category selection
-	const CategoryDropdown = ({
-		value,
-		onChange,
-		categories,
-		className,
-		disabled = false,
-		placeholder = 'Select category',
-	}: {
-		value: string;
-		onChange: (value: string) => void;
-		categories: typeof DEFAULT_CATEGORIES;
-		className: string;
-		disabled?: boolean;
-		placeholder?: string;
-	}) => {
-		const [isOpen, setIsOpen] = useState(false);
-		const selectedCategory = categories.find(cat => cat.id === value);
-		const dropdownRef = React.useRef<HTMLDivElement>(null);
-
-		// Close dropdown when clicking outside (disabled for form elements)
-		React.useEffect(() => {
-			// Don't add click outside handler if this is a form dropdown
-			if (className.includes('category-select')) {
-				return;
-			}
-
-			const handleClickOutside = (event: MouseEvent) => {
-				const target = event.target as HTMLElement;
-				if (dropdownRef.current && !dropdownRef.current.contains(target)) {
-					setIsOpen(false);
-				}
-			};
-
-			if (isOpen) {
-				const timeoutId = setTimeout(() => {
-					document.addEventListener('click', handleClickOutside);
-				}, 100);
-
-				return () => {
-					clearTimeout(timeoutId);
-					document.removeEventListener('click', handleClickOutside);
-				};
-			}
-		}, [isOpen, className]);
-
-		return (
-			<div
-				ref={dropdownRef}
-				className={`custom-dropdown ${className} ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}>
-				<div
-					className='dropdown-trigger'
-					onClick={e => {
-						e.stopPropagation();
-						if (!disabled) {
-							setIsOpen(!isOpen);
-						}
-					}}>
-					<div className='dropdown-content'>
-						{selectedCategory ? <span>{selectedCategory.name}</span> : <span>{placeholder}</span>}
-					</div>
-					<div className='dropdown-arrow'>▼</div>
-				</div>
-				{isOpen && (
-					<div className='dropdown-menu' onClick={e => e.stopPropagation()}>
-						{categories.map(category => (
-							<div
-								key={category.id}
-								className={`dropdown-option ${value === category.id ? 'selected' : ''}`}
-								onClick={e => {
-									e.stopPropagation();
-									onChange(category.id);
-									setIsOpen(false);
-								}}>
-								<span>{category.name}</span>
-							</div>
-						))}
-					</div>
-				)}
-			</div>
-		);
 	};
 
 	const loadEntries = async () => {
@@ -263,10 +184,13 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 		}
 	};
 
-	const handleDelete = async (id: number) => {
-		if (!confirm('Are you sure you want to delete this entry?')) {
-			return;
-		}
+	const handleDeleteClick = (id: number) => {
+		setEntryToDelete(id);
+		setShowDeleteModal(true);
+	};
+
+	const handleDeleteConfirm = async () => {
+		if (entryToDelete === null) return;
 
 		try {
 			if (!window.vault) {
@@ -275,13 +199,15 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 				return;
 			}
 
-			const success = await window.vault.deleteEntry(id);
+			const success = await window.vault.deleteEntry(entryToDelete);
 
 			if (success) {
 				// Clear form and reload entries
 				resetForm();
 				await loadEntries();
 				await loadSecurityInfo(); // Reload security info
+				setShowDeleteModal(false);
+				setEntryToDelete(null);
 			} else {
 				console.error('[VaultScreen] Delete operation returned false');
 				alert('Failed to delete entry. Please try again.');
@@ -291,6 +217,11 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			alert(`Failed to delete entry: ${errorMessage}`);
 		}
+	};
+
+	const handleDeleteCancel = () => {
+		setShowDeleteModal(false);
+		setEntryToDelete(null);
 	};
 
 	// Enhanced clipboard protection with feedback
@@ -469,24 +400,98 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 					</div>
 				)}
 
+				{/* Category Filter Modal */}
+				{showFilterModal && (
+					<div className='modal-overlay' onClick={() => setShowFilterModal(false)}>
+						<div className='category-modal' onClick={e => e.stopPropagation()}>
+							<div className='modal-header'>
+								<h3>Filter by Category</h3>
+								<button className='modal-close' onClick={() => setShowFilterModal(false)} title='Close'>
+									×
+								</button>
+							</div>
+							<div className='category-grid'>
+								{/* All Categories Option */}
+								<div
+									className={`category-option ${selectedCategory === 'all' ? 'selected' : ''}`}
+									onClick={() => {
+										setSelectedCategory('all');
+										setShowFilterModal(false);
+									}}>
+									<div className='category-icon-wrapper' style={{ backgroundColor: '#6b7280' }}>
+										<Search size={24} />
+									</div>
+									<span className='category-name'>All Categories</span>
+								</div>
+
+								{/* Individual Categories */}
+								{DEFAULT_CATEGORIES.map(category => (
+									<div
+										key={category.id}
+										className={`category-option ${selectedCategory === category.id ? 'selected' : ''}`}
+										onClick={() => {
+											setSelectedCategory(category.id);
+											setShowFilterModal(false);
+										}}>
+										<div className='category-icon-wrapper' style={{ backgroundColor: category.color }}>
+											{renderCategoryIcon(category.icon, 24)}
+										</div>
+										<span className='category-name'>{category.name}</span>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Delete Confirmation Modal */}
+				{showDeleteModal && (
+					<div className='modal-overlay' onClick={handleDeleteCancel}>
+						<div className='delete-modal' onClick={e => e.stopPropagation()}>
+							<div className='modal-header'>
+								<h3>Delete Entry</h3>
+								<button className='modal-close' onClick={handleDeleteCancel} title='Close'>
+									×
+								</button>
+							</div>
+							<div className='delete-content'>
+								<div className='delete-icon'>
+									<Trash2 size={48} />
+								</div>
+								<p className='delete-message'>
+									Are you sure you want to delete this entry? This action cannot be undone.
+								</p>
+								<div className='delete-actions'>
+									<button className='delete-cancel' onClick={handleDeleteCancel}>
+										Cancel
+									</button>
+									<button className='delete-confirm' onClick={handleDeleteConfirm}>
+										Delete
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
 				{/* Entries List */}
 				<div className='entries-section'>
 					<div className='entries-header'>
-						<h3 className='entries-title'>Saved Passwords</h3>
-
 						{/* Category Filter */}
-						<div className='category-filter'>
-							<CategoryDropdown
-								value={selectedCategory}
-								onChange={value => setSelectedCategory(value)}
-								categories={[
-									{ id: 'all', name: 'All Categories', color: '#6b7280', icon: 'Search' },
-									...DEFAULT_CATEGORIES,
-								]}
-								className='category-filter-select'
-								placeholder='All Categories'
-							/>
-						</div>
+						<button className='category-filter-button' onClick={() => setShowFilterModal(true)}>
+							{selectedCategory === 'all' ? (
+								<>
+									<Search size={16} />
+									<span>All Categories</span>
+								</>
+							) : (
+								<>
+									{renderCategoryIcon(DEFAULT_CATEGORIES.find(cat => cat.id === selectedCategory)?.icon || 'Key', 16)}
+									<span>{DEFAULT_CATEGORIES.find(cat => cat.id === selectedCategory)?.name || 'Category'}</span>
+								</>
+							)}
+							<span className='filter-arrow'>▼</span>
+						</button>
 
 						{/* Search Bar */}
 						<div className='search-container'>
@@ -557,7 +562,7 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 											</div>
 											<div className='entry-date'>{formatDate(entry.created_at)}</div>
 											<button
-												onClick={() => handleDelete(entry.id)}
+												onClick={() => handleDeleteClick(entry.id)}
 												className='delete-button'
 												title='Delete this entry'>
 												<Trash2 size={16} />

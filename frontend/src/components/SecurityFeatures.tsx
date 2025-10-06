@@ -1,25 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './SecurityFeatures.css';
-import { Shield, CheckCircle, AlertTriangle, X, AlertCircle, Lock, Eye } from 'lucide-react';
+import { Shield, CheckCircle, AlertTriangle, X } from 'lucide-react';
 
 interface SecurityStatus {
 	encryptionActive: boolean;
 	autoLockActive: boolean;
-	clipboardProtection: boolean;
 	networkIsolation: boolean;
 	developerToolsBlocked: boolean;
 	contextMenuBlocked: boolean;
-	threatLevel?: 'low' | 'medium' | 'high';
-	sessionId?: string;
-	failedAttempts?: number;
-	lastSecurityCheck?: number;
 }
 
 const SecurityFeatures: React.FC = () => {
 	const [securityStatus, setSecurityStatus] = useState<SecurityStatus | null>(null);
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [timeUntilLock, setTimeUntilLock] = useState(180); // 3 minutes (180 seconds)
-	const [threatIndicator, setThreatIndicator] = useState<'low' | 'medium' | 'high'>('low');
 	const panelRef = useRef<HTMLDivElement>(null);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -55,9 +49,6 @@ const SecurityFeatures: React.FC = () => {
 				if (window.security && window.security.getStatus) {
 					const status = await window.security.getStatus();
 					setSecurityStatus(status);
-					if (status.threatLevel) {
-						setThreatIndicator(status.threatLevel);
-					}
 				}
 			} catch (error) {
 				console.error('[SecurityFeatures] Error getting security status:', error);
@@ -65,10 +56,6 @@ const SecurityFeatures: React.FC = () => {
 		};
 
 		getStatus();
-
-		// Update status every 30 seconds
-		const interval = setInterval(getStatus, 30000);
-		return () => clearInterval(interval);
 	}, []);
 
 	// Click outside to close
@@ -123,58 +110,19 @@ const SecurityFeatures: React.FC = () => {
 		return '#10b981'; // Green (more than 1 minute)
 	};
 
-	const getThreatLevelIcon = (level: string) => {
-		switch (level) {
-			case 'high':
-				return <AlertCircle size={20} className='threat-icon threat-high' />;
-			case 'medium':
-				return <AlertTriangle size={20} className='threat-icon threat-medium' />;
-			default:
-				return <Shield size={20} className='threat-icon threat-low' />;
-		}
-	};
-
-	const getThreatLevelColor = (level: string) => {
-		switch (level) {
-			case 'high':
-				return '#ef4444';
-			case 'medium':
-				return '#f59e0b';
-			default:
-				return '#10b981';
-		}
-	};
-
-	const getThreatLevelText = (level: string) => {
-		switch (level) {
-			case 'high':
-				return 'High Threat';
-			case 'medium':
-				return 'Medium Threat';
-			default:
-				return 'Secure';
-		}
-	};
-
 	return (
 		<div className='security-features'>
 			<button
 				ref={buttonRef}
 				onClick={() => setIsExpanded(!isExpanded)}
 				className='security-toggle'
-				title='Security Features'>
+				title='Security Status'>
 				<Shield size={28} />
 				{isExpanded && (
 					<div className='auto-lock-indicator' style={{ color: getTimeUntilLockColor(timeUntilLock) }}>
 						{formatTime(timeUntilLock)}
 					</div>
 				)}
-				{/* Threat level indicator */}
-				<div
-					className='threat-indicator'
-					style={{ backgroundColor: getThreatLevelColor(threatIndicator) }}
-					title={getThreatLevelText(threatIndicator)}
-				/>
 			</button>
 
 			{isExpanded && (
@@ -188,21 +136,10 @@ const SecurityFeatures: React.FC = () => {
 
 					{securityStatus ? (
 						<>
-							{/* Threat Level Display */}
-							<div className='threat-level-section'>
-								<div className='threat-level-header'>
-									{getThreatLevelIcon(threatIndicator)}
-									<span className='threat-level-text'>{getThreatLevelText(threatIndicator)}</span>
-								</div>
-								{threatIndicator !== 'low' && (
-									<div className='threat-warning'>⚠️ Security threats detected. Review system immediately.</div>
-								)}
-							</div>
-
 							<div className='security-grid'>
 								<div className='security-info-item'>
 									<div className='info-header'>
-										<span>Encryption</span>
+										<span>AES-256 Encryption</span>
 										{getStatusIcon(securityStatus.encryptionActive)}
 									</div>
 									<div className={`status ${getStatusClass(securityStatus.encryptionActive)}`}>
@@ -212,7 +149,7 @@ const SecurityFeatures: React.FC = () => {
 
 								<div className='security-info-item'>
 									<div className='info-header'>
-										<span>Auto-Lock</span>
+										<span>Auto-Lock (3 min)</span>
 										{getStatusIcon(securityStatus.autoLockActive)}
 									</div>
 									<div className={`status ${getStatusClass(securityStatus.autoLockActive)}`}>
@@ -222,17 +159,7 @@ const SecurityFeatures: React.FC = () => {
 
 								<div className='security-info-item'>
 									<div className='info-header'>
-										<span>Clipboard Protection</span>
-										{getStatusIcon(securityStatus.clipboardProtection)}
-									</div>
-									<div className={`status ${getStatusClass(securityStatus.clipboardProtection)}`}>
-										{getStatusText(securityStatus.clipboardProtection)}
-									</div>
-								</div>
-
-								<div className='security-info-item'>
-									<div className='info-header'>
-										<span>Network Isolation</span>
+										<span>Offline Operation</span>
 										{getStatusIcon(securityStatus.networkIsolation)}
 									</div>
 									<div className={`status ${getStatusClass(securityStatus.networkIsolation)}`}>
@@ -261,34 +188,12 @@ const SecurityFeatures: React.FC = () => {
 								</div>
 							</div>
 
-							{/* Enhanced Security Info */}
-							{securityStatus.sessionId && (
-								<div className='security-details'>
-									<div className='detail-item'>
-										<Lock size={14} />
-										<span>Session ID: {securityStatus.sessionId.substring(0, 8)}...</span>
-									</div>
-									{securityStatus.failedAttempts !== undefined && (
-										<div className='detail-item'>
-											<AlertTriangle size={14} />
-											<span>Failed Attempts: {securityStatus.failedAttempts}</span>
-										</div>
-									)}
-									{securityStatus.lastSecurityCheck && (
-										<div className='detail-item'>
-											<Eye size={14} />
-											<span>Last Check: {new Date(securityStatus.lastSecurityCheck).toLocaleTimeString()}</span>
-										</div>
-									)}
-								</div>
-							)}
-
 							<div className='security-footer'>
 								<p className='security-note'>
 									<strong>Auto-Lock Timer:</strong> {formatTime(timeUntilLock)} until vault locks
 								</p>
 								<p className='security-note'>
-									<strong>Security Level:</strong> Enhanced with real-time threat detection
+									<strong>Security:</strong> Military-grade encryption with offline operation
 								</p>
 							</div>
 						</>

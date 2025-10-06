@@ -3,27 +3,18 @@ const path = require('path');
 const { Worker } = require('worker_threads');
 const vault = require('./db/vault');
 
-// Enhanced security variables
+// Security variables
 let autoLockTimer = null;
 let lastActivityTime = Date.now();
-let securitySession = null;
-let threatLevel = 'low';
-let failedAttempts = 0;
-let lastSecurityCheck = Date.now();
 
 // Security constants
 const AUTO_LOCK_DELAY = 3 * 60 * 1000; // 3 minutes
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 30 * 60 * 1000; // 30 minutes
-const SECURITY_CHECK_INTERVAL = 60 * 1000; // 1 minute
 
 // Worker thread for vault operations
 let vaultWorker = null;
 
 function createVaultWorker() {
-	vaultWorker = new Worker(path.join(__dirname, 'db/vault-worker.js'), {
-		workerData: { securityLevel: 'enhanced' },
-	});
+	vaultWorker = new Worker(path.join(__dirname, 'db/vault-worker.js'));
 
 	vaultWorker.on('message', message => {
 		handleWorkerMessage(message);
@@ -31,19 +22,15 @@ function createVaultWorker() {
 
 	vaultWorker.on('error', error => {
 		console.error('[Main] Worker error:', error);
-		threatLevel = 'high';
-		handleSecurityThreat('Worker thread error detected');
 	});
 
 	vaultWorker.on('exit', code => {
 		if (code !== 0) {
 			console.error('[Main] Worker stopped with exit code:', code);
-			threatLevel = 'high';
-			handleSecurityThreat('Worker thread crashed');
 		}
 	});
 
-	// Initialize secure worker
+	// Initialize worker
 	vaultWorker.postMessage({
 		type: 'initialize',
 		id: 'init',
@@ -54,18 +41,13 @@ function handleWorkerMessage(message) {
 	try {
 		if (message.error) {
 			console.error('[Main] Worker error:', message.error);
-			threatLevel = 'medium';
 			return;
 		}
 
 		// Handle different message types
 		switch (message.type) {
-			case 'securityAudit':
-				updateSecurityStatus(message.result);
-				break;
 			case 'initialize':
-				console.log('[Main] Secure worker initialized with session:', message.result.sessionId);
-				securitySession = message.result.sessionId;
+				console.log('[Main] Worker initialized');
 				break;
 		}
 	} catch (error) {
@@ -104,15 +86,15 @@ function createWindow() {
 	// Set up auto-lock
 	setupAutoLock(win);
 
-	// Set up real security features
-	setupRealSecurityFeatures(win);
+	// Set up security features
+	setupSecurityFeatures(win);
 
 	// Initialize vault worker
 	createVaultWorker();
 }
 
-// Enhanced security features that actually work
-function setupRealSecurityFeatures(win) {
+// Security features that actually work
+function setupSecurityFeatures(win) {
 	// Advanced developer tools and context menu blocking
 	win.webContents.on('dom-ready', () => {
 		win.webContents.executeJavaScript(`
@@ -163,35 +145,18 @@ function setupRealSecurityFeatures(win) {
 				}
 			});
 			
-			// Clipboard monitoring
-			document.addEventListener('copy', (e) => {
-				if (window.vault && window.vault.reportSecurityEvent) {
-					window.vault.reportSecurityEvent('clipboard_copy');
-				}
-			});
 		`);
 	});
 
-	// Enhanced IPC handler for security status
+	// IPC handler for security status
 	ipcMain.handle('security:getStatus', () => {
 		return {
 			encryptionActive: true,
 			autoLockActive: true,
-			clipboardProtection: true,
 			networkIsolation: true,
 			developerToolsBlocked: true,
 			contextMenuBlocked: true,
-			threatLevel: threatLevel,
-			sessionId: securitySession,
-			failedAttempts: failedAttempts,
-			lastSecurityCheck: lastSecurityCheck,
 		};
-	});
-
-	// Security event reporting
-	ipcMain.handle('security:reportEvent', (event, eventType) => {
-		handleSecurityEvent(eventType);
-		return { success: true };
 	});
 }
 
@@ -385,83 +350,3 @@ ipcMain.handle('vault:getSecurityInfo', () => {
 		throw error;
 	}
 });
-
-// Enhanced security functions
-function handleSecurityEvent(eventType) {
-	console.log('[Main] Security event detected:', eventType);
-
-	switch (eventType) {
-		case 'visibility_change':
-			// Only treat as threat if it happens repeatedly
-			console.log('[Main] Page visibility change detected');
-			break;
-		case 'clipboard_copy':
-			// Monitor clipboard usage
-			console.log('[Main] Clipboard copy event detected');
-			break;
-		default:
-			console.log('[Main] Unknown security event:', eventType);
-	}
-}
-
-function handleSecurityThreat(threat) {
-	console.warn('[Main] Security threat detected:', threat);
-
-	// Increase threat level
-	if (threatLevel === 'low') threatLevel = 'medium';
-	else if (threatLevel === 'medium') threatLevel = 'high';
-
-	// Take action based on threat level
-	if (threatLevel === 'high') {
-		console.error('[Main] High threat level - triggering emergency measures');
-		// Force auto-lock
-		if (autoLockTimer) {
-			clearTimeout(autoLockTimer);
-		}
-		// Notify renderer process
-		if (vaultWorker) {
-			vaultWorker.postMessage({
-				type: 'cleanup',
-				id: 'emergency',
-			});
-		}
-	}
-}
-
-// Reset threat level after some time
-function resetThreatLevel() {
-	setTimeout(() => {
-		if (threatLevel !== 'low') {
-			console.log('[Main] Resetting threat level to low');
-			threatLevel = 'low';
-		}
-	}, 5 * 60 * 1000); // Reset after 5 minutes
-}
-
-function updateSecurityStatus(status) {
-	lastSecurityCheck = Date.now();
-	console.log('[Main] Security status updated:', status);
-}
-
-// Periodic security checks
-setInterval(() => {
-	// Request security audit from worker
-	if (vaultWorker) {
-		vaultWorker.postMessage({
-			type: 'securityAudit',
-			id: 'audit',
-		});
-	}
-
-	// Check for suspicious activity
-	const timeSinceActivity = Date.now() - lastActivityTime;
-	if (timeSinceActivity > AUTO_LOCK_DELAY * 2) {
-		console.warn('[Main] Suspicious inactivity detected');
-		threatLevel = 'medium';
-	}
-
-	// Reset threat level if no recent threats
-	if (threatLevel !== 'low') {
-		resetThreatLevel();
-	}
-}, SECURITY_CHECK_INTERVAL);

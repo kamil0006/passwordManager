@@ -11,9 +11,8 @@ const SALT_LENGTH = 32;
 const KEY_LENGTH = 32;
 const IV_LENGTH = 16;
 
-// Secure memory management
+// Memory management
 let sensitiveData = new Map();
-let securityContext = null;
 
 // Enhanced error handling
 process.on('uncaughtException', error => {
@@ -39,9 +38,6 @@ function secureMemoryCleanup() {
 	try {
 		// Clear sensitive data from memory
 		sensitiveData.clear();
-
-		// Clear security context
-		securityContext = null;
 
 		// Force garbage collection if available
 		if (global.gc) {
@@ -133,13 +129,7 @@ parentPort.on('message', async message => {
 
 		switch (message.type) {
 			case 'initialize':
-				// Initialize security context
-				securityContext = {
-					sessionId: crypto.randomBytes(16).toString('hex'),
-					startTime: Date.now(),
-					operations: 0,
-				};
-				result = { success: true, sessionId: securityContext.sessionId };
+				result = { success: true };
 				break;
 
 			case 'addEntry':
@@ -226,19 +216,6 @@ parentPort.on('message', async message => {
 				result = { password: generatedPassword };
 				break;
 
-			case 'securityAudit':
-				result = {
-					sessionId: securityContext?.sessionId,
-					operations: securityContext?.operations || 0,
-					uptime: securityContext ? Date.now() - securityContext.startTime : 0,
-					memoryUsage: process.memoryUsage(),
-					securityLevel: 'Enhanced',
-					encryption: 'AES-256-GCM',
-					keyDerivation: 'PBKDF2-SHA256',
-					iterations: PBKDF2_ITERATIONS,
-				};
-				break;
-
 			case 'cleanup':
 				secureMemoryCleanup();
 				result = { success: true, message: 'Secure cleanup completed' };
@@ -246,11 +223,6 @@ parentPort.on('message', async message => {
 
 			default:
 				throw new Error(`Unknown message type: ${message.type}`);
-		}
-
-		// Update security context
-		if (securityContext) {
-			securityContext.operations++;
 		}
 
 		// Send result back to main process
@@ -286,11 +258,7 @@ process.on('SIGTERM', () => {
 	process.exit(0);
 });
 
-// Periodic security cleanup
+// Periodic memory cleanup
 setInterval(() => {
-	if (securityContext && securityContext.operations > 1000) {
-		console.log('[VaultWorker] High operation count, performing security cleanup');
-		secureMemoryCleanup();
-		securityContext.operations = 0;
-	}
-}, 30000); // Every 30 seconds
+	secureMemoryCleanup();
+}, 300000); // Every 5 minutes
