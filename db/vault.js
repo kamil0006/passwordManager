@@ -61,6 +61,7 @@ try {
 			name TEXT NOT NULL,
 			username TEXT,
 			encrypted_password TEXT NOT NULL,
+			category TEXT DEFAULT 'personal',
 			salt TEXT NOT NULL,
 			iv TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -69,6 +70,16 @@ try {
 			last_access DATETIME
 		)
 	`);
+
+	// Check if category column exists, if not add it
+	try {
+		db.exec('SELECT category FROM entries LIMIT 1');
+		console.log('[Vault] Category column already exists');
+	} catch (error) {
+		console.log('[Vault] Adding category column to existing database...');
+		db.exec('ALTER TABLE entries ADD COLUMN category TEXT DEFAULT "personal"');
+		console.log('[Vault] Category column added successfully');
+	}
 
 	// Create security metadata table
 	db.exec(`
@@ -160,7 +171,7 @@ function decrypt(ciphertext, password, salt, iv) {
 	}
 }
 
-function addEntry(name, username, plainPassword, masterPassword) {
+function addEntry(name, username, plainPassword, category, masterPassword) {
 	// Remove sensitive logging
 	console.log('[Vault] addEntry called for service:', name);
 
@@ -182,10 +193,10 @@ function addEntry(name, username, plainPassword, masterPassword) {
 		const encryptedPassword = encrypt(plainPassword, masterPassword, salt, iv);
 
 		const stmt = db.prepare(`
-      INSERT INTO entries (name, username, encrypted_password, salt, iv) 
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO entries (name, username, encrypted_password, category, salt, iv) 
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
-		const result = stmt.run(name, username || '', encryptedPassword, salt, iv);
+		const result = stmt.run(name, username || '', encryptedPassword, category || 'personal', salt, iv);
 
 		return result.lastInsertRowid;
 	} catch (error) {
@@ -211,6 +222,7 @@ function getAllEntries(masterPassword) {
 						name: row.name,
 						username: row.username,
 						password: password,
+						category: row.category || 'personal',
 						created_at: row.created_at,
 						last_modified: row.last_modified,
 					});

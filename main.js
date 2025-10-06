@@ -293,7 +293,7 @@ ipcMain.handle('vault:addEntry', async (event, entry) => {
 			});
 		} else {
 			// Fallback to main thread if worker not available
-			const result = vault.addEntry(entry.name, entry.username, entry.password, entry.masterPassword);
+			const result = vault.addEntry(entry.name, entry.username, entry.password, entry.category, entry.masterPassword);
 			return result;
 		}
 	} catch (error) {

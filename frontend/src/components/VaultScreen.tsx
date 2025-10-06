@@ -1,9 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import './VaultScreen.css';
 import type { Entry } from '../types/vault';
-import { Check, Copy, Trash2 } from 'lucide-react';
+import {
+	Check,
+	Copy,
+	Trash2,
+	Briefcase,
+	Home,
+	Building2,
+	Smartphone,
+	ShoppingCart,
+	Gamepad2,
+	Zap,
+	Key,
+} from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import SecurityFeatures from './SecurityFeatures';
+import { DEFAULT_CATEGORIES, suggestCategory } from '../config/categories';
 
 type Props = {
 	masterPassword: string;
@@ -12,12 +25,116 @@ type Props = {
 
 const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 	const [entries, setEntries] = useState<Entry[]>([]);
-	const [form, setForm] = useState({ name: '', username: '', password: '' });
+	const [form, setForm] = useState({ name: '', username: '', password: '', category: 'personal' });
 	const [isLoading, setIsLoading] = useState(false);
 	const [isAdding, setIsAdding] = useState(false);
 	const [timeUntilLock, setTimeUntilLock] = useState(180); // 3 minutes
 	const [copiedItem, setCopiedItem] = useState<string | null>(null); // Track what was copied
 	const [searchQuery, setSearchQuery] = useState(''); // Search functionality
+	const [selectedCategory, setSelectedCategory] = useState('all'); // Category filter
+
+	// Helper function to render category icon
+	const renderCategoryIcon = (iconName: string, size: number = 16) => {
+		const iconProps = { size, className: 'category-icon' };
+		switch (iconName) {
+			case 'Briefcase':
+				return <Briefcase {...iconProps} />;
+			case 'Home':
+				return <Home {...iconProps} />;
+			case 'Building2':
+				return <Building2 {...iconProps} />;
+			case 'Smartphone':
+				return <Smartphone {...iconProps} />;
+			case 'ShoppingCart':
+				return <ShoppingCart {...iconProps} />;
+			case 'Gamepad2':
+				return <Gamepad2 {...iconProps} />;
+			case 'Zap':
+				return <Zap {...iconProps} />;
+			case 'Key':
+				return <Key {...iconProps} />;
+			default:
+				return <Key {...iconProps} />;
+		}
+	};
+
+	// Custom dropdown component for category selection
+	const CategoryDropdown = ({
+		value,
+		onChange,
+		categories,
+		className,
+		disabled = false,
+		placeholder = 'Select category',
+	}: {
+		value: string;
+		onChange: (value: string) => void;
+		categories: typeof DEFAULT_CATEGORIES;
+		className: string;
+		disabled?: boolean;
+		placeholder?: string;
+	}) => {
+		const [isOpen, setIsOpen] = useState(false);
+		const selectedCategory = categories.find(cat => cat.id === value);
+		const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+		// Close dropdown when clicking outside
+		React.useEffect(() => {
+			const handleClickOutside = (event: MouseEvent) => {
+				if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+					setIsOpen(false);
+				}
+			};
+
+			if (isOpen) {
+				// Add a small delay to prevent immediate closing
+				const timeoutId = setTimeout(() => {
+					document.addEventListener('click', handleClickOutside);
+				}, 100);
+
+				return () => {
+					clearTimeout(timeoutId);
+					document.removeEventListener('click', handleClickOutside);
+				};
+			}
+		}, [isOpen]);
+
+		return (
+			<div
+				ref={dropdownRef}
+				className={`custom-dropdown ${className} ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}>
+				<div
+					className='dropdown-trigger'
+					onClick={e => {
+						e.stopPropagation();
+						if (!disabled) {
+							setIsOpen(!isOpen);
+						}
+					}}>
+					<div className='dropdown-content'>
+						{selectedCategory ? <span>{selectedCategory.name}</span> : <span>{placeholder}</span>}
+					</div>
+					<div className='dropdown-arrow'>▼</div>
+				</div>
+				{isOpen && (
+					<div className='dropdown-menu' onClick={e => e.stopPropagation()}>
+						{categories.map(category => (
+							<div
+								key={category.id}
+								className={`dropdown-option ${value === category.id ? 'selected' : ''}`}
+								onClick={e => {
+									e.stopPropagation();
+									onChange(category.id);
+									setIsOpen(false);
+								}}>
+								<span>{category.name}</span>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
+		);
+	};
 
 	const loadEntries = async () => {
 		try {
@@ -104,7 +221,7 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 	}, []);
 
 	const resetForm = () => {
-		setForm({ name: '', username: '', password: '' });
+		setForm({ name: '', username: '', password: '', category: 'personal' });
 	};
 
 	const handleAdd = async () => {
@@ -125,6 +242,7 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 				name: form.name,
 				username: form.username,
 				password: form.password,
+				category: form.category,
 				masterPassword,
 			});
 			resetForm();
@@ -198,56 +316,25 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 		}
 	};
 
-	// Password strength calculation
-	const calculatePasswordStrength = (password: string) => {
-		if (!password) return { score: 0, strength: 'none', color: '#6b7280' };
-
-		let score = 0;
-		const checks = {
-			length: password.length >= 8,
-			uppercase: /[A-Z]/.test(password),
-			lowercase: /[a-z]/.test(password),
-			numbers: /\d/.test(password),
-			special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
-		};
-
-		// Score based on checks passed
-		Object.values(checks).forEach(passed => {
-			if (passed) score++;
-		});
-
-		// Bonus for length
-		if (password.length >= 12) score++;
-		if (password.length >= 16) score++;
-
-		// Determine strength and color
-		let strength: string;
-		let color: string;
-
-		if (score <= 2) {
-			strength = 'weak';
-			color = '#ef4444'; // Red
-		} else if (score <= 4) {
-			strength = 'medium';
-			color = '#f59e0b'; // Yellow
-		} else if (score <= 6) {
-			strength = 'strong';
-			color = '#10b981'; // Green
-		} else {
-			strength = 'very strong';
-			color = '#059669'; // Dark green
+	// Filter entries based on search query and category (only service name and username for security)
+	const filteredEntries = entries.filter(entry => {
+		// Category filter
+		if (selectedCategory !== 'all' && entry.category !== selectedCategory) {
+			return false;
 		}
 
-		return { score, strength, color, checks };
-	};
-
-	// Filter entries based on search query (only service name and username for security)
-	const filteredEntries = entries.filter(entry => {
+		// Search filter
 		if (!searchQuery.trim()) return true;
 
 		const query = searchQuery.toLowerCase();
 		return entry.name.toLowerCase().includes(query) || (entry.username && entry.username.toLowerCase().includes(query));
 	});
+
+	// Auto-suggest category when service name changes
+	const handleServiceNameChange = (name: string) => {
+		const suggestedCategory = suggestCategory(name);
+		setForm(prev => ({ ...prev, name, category: suggestedCategory }));
+	};
 
 	const formatDate = (dateString?: string) => {
 		if (!dateString) return 'Unknown';
@@ -279,79 +366,86 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 			<div className='vault-card'>
 				<h1 className='vault-title'>Password Manager</h1>
 
-				{/* Add Entry Form */}
+				{/* Add Entry Section */}
 				<div className='add-entry-section'>
-					<h3 className='add-entry-title'>Add Entry</h3>
 					{isAdding && (
 						<div className='loading-indicator'>
 							<div className='spinner'></div>
-							<span>Encrypting and saving entry... This may take a few seconds.</span>
+							<span>Encrypting and saving entry...</span>
 						</div>
 					)}
-					<div className='add-entry-form'>
-						<input
-							placeholder='Service (required)'
-							value={form.name}
-							onChange={e => setForm({ ...form, name: e.target.value })}
-							className='add-entry-input'
-							disabled={isAdding}
-						/>
-						<input
-							placeholder='Username (optional)'
-							value={form.username}
-							onChange={e => setForm({ ...form, username: e.target.value })}
-							className='add-entry-input'
-							disabled={isAdding}
-						/>
-						<input
-							placeholder='Password (required)'
-							type='password'
-							value={form.password}
-							onChange={e => setForm({ ...form, password: e.target.value })}
-							className='add-entry-input'
-							disabled={isAdding}
-						/>
-						{/* Password Strength Indicator */}
-						{form.password && (
-							<div className='password-strength-container'>
-								<div className='password-strength-bars'>
-									{Array.from({ length: 6 }, (_, i) => {
-										const strength = calculatePasswordStrength(form.password);
-										const isActive = i < strength.score;
-										return (
-											<div
-												key={i}
-												className={`strength-bar ${isActive ? 'active' : ''}`}
-												style={{
-													backgroundColor: isActive ? strength.color : 'var(--border-color)',
-												}}
-											/>
-										);
-									})}
-								</div>
-								<div
-									className='password-strength-text'
-									style={{ color: calculatePasswordStrength(form.password).color }}>
-									{calculatePasswordStrength(form.password).strength}
-								</div>
-							</div>
-						)}
-						{/* Password Requirements Hint */}
-						{!form.password && (
-							<div className='password-hint'>
-								<span>💡 Use 8+ chars, uppercase, lowercase, numbers, and symbols</span>
-							</div>
-						)}
-						<button onClick={handleAdd} className='add-entry-button' disabled={isAdding}>
-							{isAdding ? '...' : <Check size={18} />}
+					<form
+						className='entry-form'
+						onSubmit={e => {
+							e.preventDefault();
+							handleAdd();
+						}}>
+						<div className='form-row'>
+							<input
+								type='text'
+								placeholder='Service (required)'
+								value={form.name}
+								onChange={e => handleServiceNameChange(e.target.value)}
+								className='form-input'
+								disabled={isAdding}
+								required
+							/>
+							<input
+								type='text'
+								placeholder='Username (optional)'
+								value={form.username}
+								onChange={e => setForm({ ...form, username: e.target.value })}
+								className='form-input'
+								disabled={isAdding}
+							/>
+						</div>
+						<div className='form-row'>
+							<input
+								type='password'
+								placeholder='Password (required)'
+								value={form.password}
+								onChange={e => setForm({ ...form, password: e.target.value })}
+								className='form-input'
+								disabled={isAdding}
+								required
+							/>
+							<select
+								value={form.category}
+								onChange={e => setForm({ ...form, category: e.target.value })}
+								className='form-input'
+								disabled={isAdding}>
+								{DEFAULT_CATEGORIES.map(category => (
+									<option key={category.id} value={category.id}>
+										{category.name}
+									</option>
+								))}
+							</select>
+						</div>
+						<button type='submit' className='submit-button' disabled={isAdding}>
+							{isAdding ? 'Adding...' : 'Add Entry'}
 						</button>
-					</div>
+					</form>
 				</div>
 
 				{/* Entries List */}
 				<div className='entries-section'>
 					<div className='entries-header'>
 						<h3 className='entries-title'>Saved Passwords</h3>
+
+						{/* Category Filter */}
+						<div className='category-filter'>
+							<CategoryDropdown
+								value={selectedCategory}
+								onChange={value => setSelectedCategory(value)}
+								categories={[
+									{ id: 'all', name: 'All Categories', color: '#6b7280', icon: 'Search' },
+									...DEFAULT_CATEGORIES,
+								]}
+								className='category-filter-select'
+								placeholder='All Categories'
+							/>
+						</div>
+
 						{/* Search Bar */}
 						<div className='search-container'>
 							<input
@@ -386,33 +480,49 @@ const VaultScreen: React.FC<Props> = ({ masterPassword, onAutoLock }) => {
 								</div>
 							)}
 							<div className='entries-list'>
-								{filteredEntries.map(entry => (
-									<div key={entry.id} className='entry-card'>
-										<div className='entry-name'>{entry.name}</div>
-										<div className='entry-username'>
-											{entry.username || 'No username'}
+								{filteredEntries.map(entry => {
+									const category =
+										DEFAULT_CATEGORIES.find(cat => cat.id === entry.category) ||
+										DEFAULT_CATEGORIES[DEFAULT_CATEGORIES.length - 1];
+									return (
+										<div key={entry.id} className='entry-card'>
+											<div className='entry-header'>
+												<div className='entry-name'>{entry.name}</div>
+												<div
+													className='category-badge'
+													style={{ backgroundColor: category.color }}
+													title={category.name}>
+													{renderCategoryIcon(category.icon, 16)}
+												</div>
+											</div>
+											<div className='entry-username'>
+												{entry.username || 'No username'}
+												<button
+													onClick={() => copyToClipboard(entry.username || '', 'Username', `username-${entry.id}`)}
+													className='copy-button'
+													title='Copy username'>
+													{copiedItem === `username-${entry.id}` ? <Check size={16} /> : <Copy size={16} />}
+												</button>
+											</div>
+											<div className='entry-password'>
+												<span className='password-mask'>••••••••</span>
+												<button
+													onClick={() => copyToClipboard(entry.password, 'Password', `password-${entry.id}`)}
+													className='copy-button'
+													title='Copy password'>
+													{copiedItem === `password-${entry.id}` ? <Check size={16} /> : <Copy size={16} />}
+												</button>
+											</div>
+											<div className='entry-date'>{formatDate(entry.created_at)}</div>
 											<button
-												onClick={() => copyToClipboard(entry.username || '', 'Username', `username-${entry.id}`)}
-												className='copy-button'
-												title='Copy username'>
-												{copiedItem === `username-${entry.id}` ? <Check size={16} /> : <Copy size={16} />}
+												onClick={() => handleDelete(entry.id)}
+												className='delete-button'
+												title='Delete this entry'>
+												<Trash2 size={16} />
 											</button>
 										</div>
-										<div className='entry-password'>
-											<span className='password-mask'>••••••••</span>
-											<button
-												onClick={() => copyToClipboard(entry.password, 'Password', `password-${entry.id}`)}
-												className='copy-button'
-												title='Copy password'>
-												{copiedItem === `password-${entry.id}` ? <Check size={16} /> : <Copy size={16} />}
-											</button>
-										</div>
-										<div className='entry-date'>{formatDate(entry.created_at)}</div>
-										<button onClick={() => handleDelete(entry.id)} className='delete-button' title='Delete this entry'>
-											<Trash2 size={16} />
-										</button>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						</>
 					)}

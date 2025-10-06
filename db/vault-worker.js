@@ -150,6 +150,7 @@ parentPort.on('message', async message => {
 						message.data.name,
 						message.data.username,
 						message.data.password,
+						message.data.category,
 						message.data.masterPassword
 					);
 				} catch (error) {

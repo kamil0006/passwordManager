@@ -3,7 +3,15 @@ export type Entry = {
 	name: string;
 	username?: string;
 	password: string;
+	category: string;
 	created_at?: string;
+};
+
+export type Category = {
+	id: string;
+	name: string;
+	color: string;
+	icon: string;
 };
 
 export type SecurityInfo = {
@@ -24,7 +32,13 @@ export type SecurityInfo = {
 declare global {
 	interface Window {
 		vault: {
-			addEntry: (entry: { name: string; username: string; password: string; masterPassword: string }) => Promise<void>;
+			addEntry: (entry: {
+				name: string;
+				username: string;
+				password: string;
+				category: string;
+				masterPassword: string;
+			}) => Promise<void>;
 			getEntries: (masterPassword: string) => Promise<Entry[]>;
 			deleteEntry: (id: number) => Promise<boolean>;
 			testMasterPassword: (password: string) => Promise<boolean>;
